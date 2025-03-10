@@ -49,7 +49,6 @@ type LPDConn struct {
 }
 
 func setMulticastInterface(m *LPDConn, ifi string) error {
-	
 	iface, err := net.InterfaceByName(ifi)
 	if err != nil {
 		log.Printf("Interface error: %v\n", err)
@@ -69,7 +68,6 @@ func setMulticastInterface(m *LPDConn, ifi string) error {
 			return err
 		}
 	}
-	
 	return nil
 }
 
