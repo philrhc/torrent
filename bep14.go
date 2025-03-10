@@ -33,8 +33,6 @@ const (
 	bep14_long_timeout      = 1 * time.Minute
 	bep14_short_timeout     = 2 * time.Second // bep14 - 1 minute. not practial. what if use start/stop another torrent? so make it 2 secs.
 	bep14_max               = 0               // maximum hashes per request, 0 - only limited by udp packet size
-	udp4					= "udp4"
-	udp6					= "udp6"	
 )
 
 type LPDConn struct {
