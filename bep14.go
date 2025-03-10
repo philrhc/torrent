@@ -4,6 +4,8 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"golang.org/x/net/ipv4"
+	"golang.org/x/net/ipv6"
 	"log"
 	"net"
 	"net/http"
@@ -56,25 +58,49 @@ func lpdConnNew(network string, host string, lpd *LPDServer, config LocalService
 	m.host = host
 
 	var err error
-	var iface *net.Interface
-	var laddr *net.UDPAddr
 
 	m.addr, err = net.ResolveUDPAddr(m.network, m.host)
 	if err != nil {
 		log.Println("LPD unable to start", err)
 		return nil
 	}
-	m.mcListener, err = net.ListenMulticastUDP(m.network, iface, m.addr)
+	m.mcListener, err = net.ListenMulticastUDP(m.network, nil, m.addr)
 	if err != nil {
 		log.Println("LPD unable to start", err)
 		return nil
 	}
-	m.mcPublisher, err = net.DialUDP(network, laddr, m.addr)
+
+	m.mcPublisher, err = net.DialUDP(network, nil, m.addr)
 	if err != nil {
-		fmt.Println("Error dialing UDP:", err)
+		log.Println("Error dialing UDP:", err)
 		return nil
 	}
+	if (network == "udp4" && config.Ifi != "") {
+		p := ipv4.NewPacketConn(m.mcPublisher)
+		iface, err := net.InterfaceByName(config.Ifi)
+		if err != nil {
+			log.Printf("Interface error: %v\n", err)
+			return nil
+		}
+		if err := p.SetMulticastInterface(iface); err != nil {
+			log.Printf("Set multicast interface error: %v\n", err)
+			return nil
+		}
+	}
 
+	if (network == "udp6" && config.Ifi != "") {
+		p := ipv6.NewPacketConn(m.mcPublisher)
+		iface, err := net.InterfaceByName(config.Ifi)
+		if err != nil {
+			log.Printf("Interface error: %v\n", err)
+			return nil
+		}
+		if err := p.SetMulticastInterface(iface); err != nil {
+			log.Printf("Set multicast interface error: %v\n", err)
+			return nil
+		}
+	}
+	
 	return m
 }
 
