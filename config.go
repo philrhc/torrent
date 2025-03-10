@@ -251,7 +251,7 @@ func NewDefaultClientConfig() *ClientConfig {
 		MaxUnverifiedBytes:     64 << 20,
 		DialRateLimiter:        rate.NewLimiter(10, 10),
 		PieceHashersPerTorrent: 2,
-		LocalServiceDiscovery: LocalServiceDiscoveryConfig{enabled: false},
+		LocalServiceDiscovery: LocalServiceDiscoveryConfig{Enabled: false},
 	}
 	cc.DhtStartingNodes = func(network string) dht.StartingNodesGetter {
 		return func() ([]dht.Addr, error) { return dht.GlobalBootstrapAddrs(network) }

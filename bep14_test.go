@@ -39,7 +39,7 @@ cookie: name=value
 
 func TestDiscovery(t *testing.T) {
 	config := TestingConfig(t)
-	config.LocalServiceDiscovery = LocalServiceDiscoveryConfig{enabled: true}
+	config.LocalServiceDiscovery = LocalServiceDiscoveryConfig{Enabled: true}
 
 	client1, err := NewClient(config)
 	require.NoError(t, err)

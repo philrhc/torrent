@@ -107,8 +107,8 @@ func lpdConnNew(network string, host string, lpd *LPDServer, config LocalService
 	var iface *net.Interface
 	var laddr *net.UDPAddr
 
-	if config.ifi != "" {
-		iface, laddr, err = ipAddress(config.ifi, network)
+	if config.Ifi != "" {
+		iface, laddr, err = ipAddress(config.Ifi, network)
 		if err != nil {
 			log.Println("LPD unable to start", err)
 		}
