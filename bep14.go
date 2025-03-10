@@ -31,6 +31,8 @@ const (
 	bep14_long_timeout      = 1 * time.Minute
 	bep14_short_timeout     = 2 * time.Second // bep14 - 1 minute. not practial. what if use start/stop another torrent? so make it 2 secs.
 	bep14_max               = 0               // maximum hashes per request, 0 - only limited by udp packet size
+	udp4					= "udp4"
+	udp6					= "udp6"	
 )
 
 type LPDConn struct {
@@ -46,7 +48,55 @@ type LPDConn struct {
 	closed		bool
 }
 
-func lpdConnNew(network string, host string, lpd *LPDServer) *LPDConn {
+func ipAddress(ifaceName string, network string) (*net.Interface, *net.UDPAddr, error) {
+	// Get the interface IP
+	iface, err := net.InterfaceByName(ifaceName)
+	if err != nil {
+		return nil, nil, fmt.Errorf("could not find interface by name: %v", ifaceName)
+	}
+
+	// Get the list of addresses assigned to the interface
+	addrs, err := iface.Addrs()
+	if err != nil {
+		return nil, nil, fmt.Errorf("no IP addresses associated")
+	}
+
+	var ipTypeFilter func(ip net.IP) net.IP
+	if (network == udp4) {
+		ipTypeFilter = net.IP.To4
+	}
+	if (network == udp6) {
+		ipTypeFilter = net.IP.To16
+	}
+	if (ipTypeFilter == nil) {
+		return nil, nil, fmt.Errorf("network %v does not correspond to an IP address type filter", network)
+	}
+
+	// Iterate through the addresses and return the first IPv4 address
+	for _, addr := range addrs {
+		var ip net.IP
+		switch v := addr.(type) {
+		case *net.IPNet:
+			ip = v.IP
+		case *net.IPAddr:
+			ip = v.IP
+		}
+
+		// Ignore loopback addresses and pick the first valid IPv4
+		if ip != nil && !ip.IsLoopback() {
+			if ipTypeFilter(ip) != nil {
+				udpAddr := &net.UDPAddr{
+					IP:   ip,
+					Port: 0, //system chooses
+				}
+				return iface, udpAddr, nil
+			}
+		}
+	}
+	return nil, nil, fmt.Errorf("no suitable IP address found")
+}
+
+func lpdConnNew(network string, host string, lpd *LPDServer, config LocalServiceDiscoveryConfig) *LPDConn {
 	m := &LPDConn{}
 
 	m.lpd = lpd
@@ -54,33 +104,33 @@ func lpdConnNew(network string, host string, lpd *LPDServer) *LPDConn {
 	m.host = host
 
 	var err error
+	var iface *net.Interface
+	var laddr *net.UDPAddr
+
+	if config.ifi != "" {
+		iface, laddr, err = ipAddress(config.ifi, network)
+		if err != nil {
+			log.Println("LPD unable to start", err)
+		}
+	}
 
 	m.addr, err = net.ResolveUDPAddr(m.network, m.host)
 	if err != nil {
 		log.Println("LPD unable to start", err)
 		return nil
 	}
-	m.mcListener, err = net.ListenMulticastUDP(m.network, nil, m.addr)
+	m.mcListener, err = net.ListenMulticastUDP(m.network, iface, m.addr)
 	if err != nil {
 		log.Println("LPD unable to start", err)
 		return nil
 	}
-	m.mcPublisher, err = net.DialUDP(network, nil, m.addr)
+	m.mcPublisher, err = net.DialUDP(network, laddr, m.addr)
 	if err != nil {
 		fmt.Println("Error dialing UDP:", err)
 		return nil
 	}
 
 	return m
-}
-
-func contains(arr []net.Addr, addr net.Addr) bool {
-	for _, each := range arr {
-		if each == addr {
-			return true
-		}
-	}
-	return false
 }
 
 func (m *LPDConn) receiver(client *Client) {
@@ -284,13 +334,13 @@ type LPDServer struct {
 func (lpd *LPDServer) lpdStart(client *Client) {
 	lpd.peers = make(map[int64]string)
 
-	lpd.conn4 = lpdConnNew("udp4", bep14_host4, lpd)
+	lpd.conn4 = lpdConnNew("udp4", bep14_host4, lpd, client.config.LocalServiceDiscovery)
 	if lpd.conn4 != nil {
 		go lpd.conn4.receiver(client)
 		go lpd.conn4.announcer(client)
 	}
 
-	lpd.conn6 = lpdConnNew("udp6", bep14_host6, lpd)
+	lpd.conn6 = lpdConnNew("udp6", bep14_host6, lpd, client.config.LocalServiceDiscovery)
 	if lpd.conn6 != nil {
 		go lpd.conn6.receiver(client)
 		go lpd.conn6.announcer(client)

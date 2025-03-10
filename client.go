@@ -350,7 +350,7 @@ func NewClient(cfg *ClientConfig) (cl *Client, err error) {
 		},
 	}
 
-	if cfg.LocalServiceDiscovery { 
+	if cfg.LocalServiceDiscovery.enabled { 
 		cl.lpd =  &LPDServer{}
 		cl.lpd.lpdStart(cl)
 	}
