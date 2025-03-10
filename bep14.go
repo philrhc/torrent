@@ -48,6 +48,19 @@ type LPDConn struct {
 	closed		bool
 }
 
+func setMulticastInterface(m &LPDConn, p *ipv4.PacketConn, iface string) {
+	iface, err := net.InterfaceByName(config.Ifi)
+	if err != nil {
+		log.Printf("Interface error: %v\n", err)
+		return nil
+	}
+	if err := p.SetMulticastInterface(iface); err != nil {
+		log.Printf("Set multicast interface error: %v\n", err)
+		return nil
+	}
+}
+
+
 func lpdConnNew(network string, host string, lpd *LPDServer, config LocalServiceDiscoveryConfig) *LPDConn {
 	m := &LPDConn{}
 
@@ -73,30 +86,15 @@ func lpdConnNew(network string, host string, lpd *LPDServer, config LocalService
 		log.Println("Error dialing UDP:", err)
 		return nil
 	}
+	
 	if (network == "udp4" && config.Ifi != "") {
 		p := ipv4.NewPacketConn(m.mcPublisher)
-		iface, err := net.InterfaceByName(config.Ifi)
-		if err != nil {
-			log.Printf("Interface error: %v\n", err)
-			return nil
-		}
-		if err := p.SetMulticastInterface(iface); err != nil {
-			log.Printf("Set multicast interface error: %v\n", err)
-			return nil
-		}
+		setMulticastInterface(m, p, config.Ifi)
 	}
 
 	if (network == "udp6" && config.Ifi != "") {
 		p := ipv6.NewPacketConn(m.mcPublisher)
-		iface, err := net.InterfaceByName(config.Ifi)
-		if err != nil {
-			log.Printf("Interface error: %v\n", err)
-			return nil
-		}
-		if err := p.SetMulticastInterface(iface); err != nil {
-			log.Printf("Set multicast interface error: %v\n", err)
-			return nil
-		}
+		setMulticastInterface(m, p, config.Ifi)
 	}
 	
 	return m
