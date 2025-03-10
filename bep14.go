@@ -61,12 +61,12 @@ func ipAddress(ifaceName string, network string) (*net.Interface, *net.UDPAddr, 
 		return nil, nil, fmt.Errorf("no IP addresses associated")
 	}
 
-	var ipTypeFilter func(ip net.IP) net.IP
+	var ipTypeFilter func(ip net.IP) bool
 	if (network == udp4) {
-		ipTypeFilter = net.IP.To4
+		ipTypeFilter = func (ip net.IP) bool { return ip.To4() != nil }
 	}
 	if (network == udp6) {
-		ipTypeFilter = net.IP.To16
+		ipTypeFilter = func (ip net.IP) bool { return ip.To4() == nil }
 	}
 	if (ipTypeFilter == nil) {
 		return nil, nil, fmt.Errorf("network %v does not correspond to an IP address type filter", network)
@@ -84,10 +84,10 @@ func ipAddress(ifaceName string, network string) (*net.Interface, *net.UDPAddr, 
 
 		// Ignore loopback addresses and pick the first valid IPv4
 		if ip != nil && !ip.IsLoopback() {
-			if ipTypeFilter(ip) != nil {
+			if ipTypeFilter(ip) {
 				udpAddr := &net.UDPAddr{
 					IP:   ip,
-					Port: 0, //system chooses
+					Port: 0, //free port
 				}
 				return iface, udpAddr, nil
 			}
