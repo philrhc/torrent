@@ -48,54 +48,6 @@ type LPDConn struct {
 	closed		bool
 }
 
-func ipAddress(ifaceName string, network string) (*net.Interface, *net.UDPAddr, error) {
-	// Get the interface IP
-	iface, err := net.InterfaceByName(ifaceName)
-	if err != nil {
-		return nil, nil, fmt.Errorf("could not find interface by name: %v", ifaceName)
-	}
-
-	// Get the list of addresses assigned to the interface
-	addrs, err := iface.Addrs()
-	if err != nil {
-		return nil, nil, fmt.Errorf("no IP addresses associated")
-	}
-
-	var ipTypeFilter func(ip net.IP) bool
-	if (network == udp4) {
-		ipTypeFilter = func (ip net.IP) bool { return ip.To4() != nil }
-	}
-	if (network == udp6) {
-		ipTypeFilter = func (ip net.IP) bool { return ip.To4() == nil }
-	}
-	if (ipTypeFilter == nil) {
-		return nil, nil, fmt.Errorf("network %v does not correspond to an IP address type filter", network)
-	}
-
-	// Iterate through the addresses and return the first IPv4 address
-	for _, addr := range addrs {
-		var ip net.IP
-		switch v := addr.(type) {
-		case *net.IPNet:
-			ip = v.IP
-		case *net.IPAddr:
-			ip = v.IP
-		}
-
-		// Ignore loopback addresses and pick the first valid IPv4
-		if ip != nil && !ip.IsLoopback() {
-			if ipTypeFilter(ip) {
-				udpAddr := &net.UDPAddr{
-					IP:   ip,
-					Port: 0, //free port
-				}
-				return iface, udpAddr, nil
-			}
-		}
-	}
-	return nil, nil, fmt.Errorf("no suitable IP address found")
-}
-
 func lpdConnNew(network string, host string, lpd *LPDServer, config LocalServiceDiscoveryConfig) *LPDConn {
 	m := &LPDConn{}
 
@@ -106,13 +58,6 @@ func lpdConnNew(network string, host string, lpd *LPDServer, config LocalService
 	var err error
 	var iface *net.Interface
 	var laddr *net.UDPAddr
-
-	if config.Ifi != "" {
-		iface, laddr, err = ipAddress(config.Ifi, network)
-		if err != nil {
-			log.Println("LPD unable to start", err)
-		}
-	}
 
 	m.addr, err = net.ResolveUDPAddr(m.network, m.host)
 	if err != nil {
