@@ -157,7 +157,6 @@ func (m *LPDConn) receiver(client *Client) {
 
 		client.rLock()
 		if client.LocalPort() == addr.Port {
-			log.Println("discovered self")
 			client.rUnlock()
 			continue
 		}
