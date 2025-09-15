@@ -35,7 +35,8 @@ jobs:
       # Separate benchmarks because I think it modifies the stderr handling.
       - run: go test -race -bench . -benchtime 2x -run @ ./...
 
-  test-benchmarks:
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
+        # Test on 386 for atomic alignment and other bad 64-bit assumptions
+      - if: matrix.os != 'macos-latest'
+        run: GOARCH=386 go test -run @ ./...
+      - name: Some packages compile for WebAssembly
+        run: GOOS=js GOARCH=wasm go build . ./storage ./tracker/...
