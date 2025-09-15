@@ -96,18 +96,20 @@ func (t *Torrent) PieceBytesMissing(piece int) int64 {
 	return int64(t.pieces[piece].bytesLeft())
 }
 
-// Drop the torrent from the client, and close it. It's always safe to do
-// this. No data corruption can, or should occur to either the torrent's data,
-// or connected peers.
+// Drop the torrent from the client, and close it. It's always safe to do this. No data corruption
+// can, or should occur to either the torrent's data, or connected peers.
 func (t *Torrent) Drop() {
-	var wg sync.WaitGroup
-	defer wg.Wait()
+	if t.closed.IsSet() {
+		return
+	}
 	t.cl.lock()
 	defer t.cl.unlock()
-	err := t.cl.dropTorrent(t, &wg)
-	if err != nil {
-		panic(err)
+	if t.closed.IsSet() {
+		return
 	}
+	var wg sync.WaitGroup
+	t.close(&wg)
+	wg.Wait()
 }
 
 // Number of bytes of the entire torrent we have completed. This is the sum of
@@ -205,7 +207,8 @@ func (t *Torrent) CancelPieces(begin, end pieceIndex) {
 
 func (t *Torrent) cancelPiecesLocked(begin, end pieceIndex, reason updateRequestReason) {
 	for i := begin; i < end; i++ {
-		p := &t.pieces[i]
+		p := t.piece(i)
+		// Intentionally cancelling only the piece-specific priority here.
 		if p.priority == PiecePriorityNone {
 			continue
 		}
@@ -290,12 +293,13 @@ func (t *Torrent) PeerConns() []*PeerConn {
 	return ret
 }
 
+// TODO: Misleading method name. Webseed peers are not PeerConns.
 func (t *Torrent) WebseedPeerConns() []*Peer {
 	t.cl.rLock()
 	defer t.cl.rUnlock()
 	ret := make([]*Peer, 0, len(t.conns))
 	for _, c := range t.webSeeds {
-		ret = append(ret, c)
+		ret = append(ret, &c.peer)
 	}
 	return ret
 }

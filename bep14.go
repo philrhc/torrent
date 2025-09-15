@@ -33,12 +33,9 @@ const (
 		"\r\n" +
 		"\r\n"
 	bep14AnnounceInfohash = "Infohash: %s\r\n"
-	bep14LongTimeout      = 10 * time.Second
-	// bep14 - 1 minute. not practical. what if use start/stop another torrent? so make it 2 secs.
-	// TODO: Trigger this when torrents are added/removed instead, with a minimum delay (coalesce
-	// frequent changes).
-	bep14ShortTimeout = 2 * time.Second
-	bep14Max          = 0 // maximum hashes per request, 0 - only limited by udp packet size
+	bep14LongTimeout		= 1 * time.Minute
+	bep14ShortTimeout 		= 1 * time.Second
+	bep14Max				= 0 // maximum hashes per request, 0 - only limited by udp packet size
 )
 
 type lpdConn struct {
@@ -223,8 +220,8 @@ func (m *lpdConn) receiver(client *Client) {
 			m.logger.Println("receiver", err)
 			continue
 		}
+		
 		client.rLock()
-
 		// Possible to receive own UDP multicast message, ignore it.
 		if client.LocalPort() == addr.Port && addr.IP.String() == m.host {
 			client.rUnlock()
@@ -270,7 +267,7 @@ func (m *lpdConn) receiver(client *Client) {
 }
 
 func (m *lpdConn) announcer(client *Client) {
-	var refresh time.Duration = 100 * time.Millisecond
+	var refresh time.Duration = bep14LongTimeout
 	var next *Torrent
 	var queue []*Torrent
 
