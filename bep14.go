@@ -33,7 +33,7 @@ const (
 		"\r\n" +
 		"\r\n"
 	bep14AnnounceInfohash = "Infohash: %s\r\n"
-	bep14LongTimeout		= 1 * time.Minute
+	bep14LongTimeout		= 10 * time.Second
 	bep14ShortTimeout 		= 1 * time.Second
 	bep14Max				= 0 // maximum hashes per request, 0 - only limited by udp packet size
 )
@@ -223,7 +223,12 @@ func (m *lpdConn) receiver(client *Client) {
 		
 		client.rLock()
 		// Possible to receive own UDP multicast message, ignore it.
-		if client.LocalPort() == addr.Port && addr.IP.String() == m.host {
+		log.Println("receiver", "LocalPort", client.LocalPort(), 
+		"addr.Port", addr.Port, 
+		"addr.IP.String()", addr.IP.String(), 
+		"m.mcPublisher.LocalAddr().String()", m.mcPublisher.LocalAddr().String())
+		if client.LocalPort() == addr.Port && strings.Contains(m.mcPublisher.LocalAddr().String(), addr.String()) {
+			m.logger.Println("receiver", "Ignoring own message")
 			client.rUnlock()
 			continue
 		}
@@ -235,6 +240,7 @@ func (m *lpdConn) receiver(client *Client) {
 			return
 		}
 
+		m.logger.Println("receiver", "Adding peer", addr.String())
 		m.lpd.peer(addr.String())
 		m.lpd.refresh()
 		m.lpd.mu.Unlock()
@@ -486,5 +492,6 @@ func lpdPeer(t *Torrent, p string) {
 		Addr:   &net.UDPAddr{IP: ip, Port: pi},
 		Source: PeerSourceLPD,
 	}
+	t.logger.Println("lpdPeer", "Adding peer", peer.Addr.String())
 	t.AddPeers([]PeerInfo{peer})
 }

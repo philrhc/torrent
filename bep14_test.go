@@ -3,6 +3,7 @@ package torrent
 import (
 	"bufio"
 	"bytes"
+	"log"
 	"net/http"
 	"os"
 	"testing"
@@ -38,6 +39,7 @@ cookie: name=value
 }
 
 func TestDiscovery(t *testing.T) {
+	//hiiiii
 	config := TestingConfig(t)
 	config.EnableLocalServiceDiscovery = true
 	config.LocalServiceDiscoveryConfig = LocalServiceDiscoveryConfig{Ip6: false}
@@ -75,6 +77,7 @@ func waitForPeers(t *Torrent, num int) {
 	t.cl.lock()
 	defer t.cl.unlock()
 	for {
+		log.Println("waitForPeers", "numTotalPeers", t.numTotalPeers(), "num", num)
 		if t.numTotalPeers() == num {
 			return
 		}
